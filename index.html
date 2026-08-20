@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML 미리보기 v4</title>
+<title>HTML 미리보기 v7</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -193,10 +193,7 @@
     z-index: 100;
     white-space: nowrap;
   }
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -205,7 +202,7 @@
   <div class="logo">
     <div class="logo-icon">&#60;/&#62;</div>
     HTML 미리보기
-    <span style="font-size:10px;font-weight:400;color:var(--text-hint);margin-left:4px;">v4</span>
+    <span style="font-size:10px;font-weight:400;color:var(--text-hint);margin-left:4px;">v7</span>
   </div>
   <div class="spacer"></div>
   <div class="toolbar-btns">
@@ -247,19 +244,20 @@ const toast      = document.getElementById('toast');
 const captureBtn = document.getElementById('captureBtn');
 
 let timer;
+let currentCode = '';
 
 function updatePreview() {
-  const code = editor.value.trim();
+  currentCode = editor.value.trim();
   lineCount.textContent = (editor.value ? editor.value.split('\n').length : 0) + '줄';
   clearTimeout(timer);
   timer = setTimeout(() => {
-    if (!code) {
+    if (!currentCode) {
       frame.style.display = 'none';
       emptyState.style.display = 'flex';
       return;
     }
     const doc = frame.contentDocument || frame.contentWindow.document;
-    doc.open(); doc.write(code); doc.close();
+    doc.open(); doc.write(currentCode); doc.close();
     frame.style.display = 'block';
     emptyState.style.display = 'none';
   }, 280);
@@ -283,53 +281,114 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   editor.focus();
 });
 
-// ── 캡처: dom-to-image-more 라이브러리 사용 ──
-captureBtn.addEventListener('click', async () => {
-  const code = editor.value.trim();
-  if (!code) { showToast('먼저 HTML 코드를 입력하세요'); return; }
+// ── 캡처 ──
+// 핵심 전략: 캡처 전용 iframe을 만들고 그 안에 html2canvas를 주입.
+// 단, iframe 너비를 콘텐츠의 max-width에 맞게 설정한 뒤
+// html2canvas의 onclone 콜백에서 정확한 scrollHeight를 재측정해 딱 맞게 자름.
+captureBtn.addEventListener('click', () => {
+  if (!currentCode) { showToast('먼저 HTML 코드를 입력하세요'); return; }
 
   captureBtn.disabled = true;
   captureBtn.textContent = '캡처 중...';
 
-  try {
-    const iDoc  = frame.contentDocument || frame.contentWindow.document;
-    const iBody = iDoc.body;
-    const iHtml = iDoc.documentElement;
+  const h2cUrl = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
 
-    // 콘텐츠 실제 크기
-    const W = Math.max(iBody.scrollWidth,  iHtml.scrollWidth,  iBody.offsetWidth,  iHtml.offsetWidth);
-    const H = Math.max(iBody.scrollHeight, iHtml.scrollHeight, iBody.offsetHeight, iHtml.offsetHeight);
+  // 캡처 전용 iframe — 너비를 800px로 고정해서 콘텐츠 너비 기준으로 렌더링
+  const captureFrame = document.createElement('iframe');
+  captureFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+  captureFrame.style.cssText = 'position:fixed;left:-99999px;top:0;width:800px;height:3000px;border:none;visibility:hidden;';
+  document.body.appendChild(captureFrame);
 
-    // iframe을 콘텐츠 크기로 임시 확장 (여백 제거 핵심)
-    frame.style.width  = W + 'px';
-    frame.style.height = H + 'px';
+  // 유저 코드 끝에 캡처 스크립트 주입
+  // </body> 가 없는 코드도 처리
+  const tag = currentCode.toLowerCase().includes('</body>') ? '</body>' : null;
 
-    // domtoimage로 캡처
-    const dataUrl = await domtoimage.toPng(iHtml, {
-      width: W,
-      height: H,
-      style: { margin: '0', padding: '0' }
-    });
+  const captureScript = `
+<script src="${h2cUrl}"><\/script>
+<script>
+window.addEventListener('load', function() {
+  // 마진/패딩 제거
+  document.documentElement.style.margin = '0';
+  document.documentElement.style.padding = '0';
+  document.body.style.margin = '0';
+  document.body.style.padding = '0';
 
-    // iframe 원래 크기 복원
-    frame.style.width  = '100%';
-    frame.style.height = '100%';
-
-    const a  = document.createElement('a');
-    const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
-    a.download = 'preview-' + ts + '.png';
-    a.href = dataUrl;
-    a.click();
-    showToast('✓ 저장되었습니다');
-  } catch (err) {
-    frame.style.width  = '100%';
-    frame.style.height = '100%';
-    console.error(err);
-    showToast('캡처 실패: ' + err.message);
+  // 콘텐츠 자식들의 실제 bounding rect로 정확한 크기 측정
+  var allEls = document.body.querySelectorAll('*');
+  var maxRight = 0, maxBottom = 0;
+  for (var i = 0; i < allEls.length; i++) {
+    var r = allEls[i].getBoundingClientRect();
+    if (r.right  > maxRight)  maxRight  = r.right;
+    if (r.bottom > maxBottom) maxBottom = r.bottom;
   }
+  // body 자체 rect도 포함
+  var bodyRect = document.body.getBoundingClientRect();
+  var W = Math.max(maxRight,  bodyRect.width,  document.body.offsetWidth);
+  var H = Math.max(maxBottom, bodyRect.height, document.body.offsetHeight, document.body.scrollHeight);
 
-  captureBtn.disabled = false;
-  captureBtn.textContent = '📷 캡처 저장';
+  html2canvas(document.body, {
+    width:        W,
+    height:       H,
+    windowWidth:  W,
+    windowHeight: H,
+    x:            0,
+    y:            0,
+    scrollX:      0,
+    scrollY:      0,
+    useCORS:      true,
+    allowTaint:   true,
+    scale:        2,
+    onclone: function(cloned) {
+      cloned.documentElement.style.margin  = '0';
+      cloned.documentElement.style.padding = '0';
+      cloned.body.style.margin  = '0';
+      cloned.body.style.padding = '0';
+      cloned.body.style.width   = W + 'px';
+    }
+  }).then(function(canvas) {
+    window.parent.postMessage({ type: 'CAPTURE_DONE', dataUrl: canvas.toDataURL('image/png') }, '*');
+  }).catch(function(err) {
+    window.parent.postMessage({ type: 'CAPTURE_ERROR', msg: String(err) }, '*');
+  });
+});
+<\/script>`;
+
+  const injected = tag
+    ? currentCode.replace(/<\/body>/i, captureScript + '</body>')
+    : currentCode + captureScript;
+
+  function onMessage(e) {
+    if (!e.data || (e.data.type !== 'CAPTURE_DONE' && e.data.type !== 'CAPTURE_ERROR')) return;
+    window.removeEventListener('message', onMessage);
+    if (document.body.contains(captureFrame)) document.body.removeChild(captureFrame);
+    captureBtn.disabled = false;
+    captureBtn.textContent = '📷 캡처 저장';
+
+    if (e.data.type === 'CAPTURE_DONE') {
+      const a  = document.createElement('a');
+      const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+      a.download = 'preview-' + ts + '.png';
+      a.href = e.data.dataUrl;
+      a.click();
+      showToast('✓ 저장되었습니다');
+    } else {
+      showToast('캡처 실패: ' + e.data.msg);
+    }
+  }
+  window.addEventListener('message', onMessage);
+
+  const cDoc = captureFrame.contentDocument || captureFrame.contentWindow.document;
+  cDoc.open(); cDoc.write(injected); cDoc.close();
+
+  setTimeout(() => {
+    if (captureBtn.disabled) {
+      window.removeEventListener('message', onMessage);
+      if (document.body.contains(captureFrame)) document.body.removeChild(captureFrame);
+      showToast('캡처 시간 초과');
+      captureBtn.disabled = false;
+      captureBtn.textContent = '📷 캡처 저장';
+    }
+  }, 30000);
 });
 
 function showToast(msg) {
@@ -360,9 +419,5 @@ document.addEventListener('mouseup', () => {
   document.body.style.userSelect = '';
 });
 </script>
-
-<!-- dom-to-image-more: SVG foreignObject보다 훨씬 안정적 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.0/dom-to-image-more.min.js"></script>
-
 </body>
 </html>
