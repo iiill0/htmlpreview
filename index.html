@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML 미리보기 v24</title>
+<title>HTML 미리보기 v23</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -232,7 +232,7 @@
   <div class="logo">
     <div class="logo-icon">&#60;/&#62;</div>
     HTML 미리보기
-    <span class="ver" style="font-size:10px;font-weight:400;color:var(--text-hint);margin-left:2px;">v24</span>
+    <span class="ver" style="font-size:10px;font-weight:400;color:var(--text-hint);margin-left:2px;">v23</span>
   </div>
   <div class="spacer"></div>
   <button class="btn btn-clear" id="clearBtn">초기화</button>
@@ -361,39 +361,44 @@ captureBtn.addEventListener('click', () => {
   captureBtn.disabled = true;
   captureBtn.textContent = '캡처 중...';
 
-  const domtoUrl = 'https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.0/dom-to-image-more.min.js';
+  const h2cUrl = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
   const cf = document.createElement('iframe');
   cf.setAttribute('sandbox', 'allow-scripts allow-same-origin');
   cf.style.cssText = 'position:fixed;left:-99999px;top:0;width:800px;height:10000px;border:none;visibility:hidden;';
   document.body.appendChild(cf);
 
   const hasBody = /<\/body>/i.test(currentCode);
-  const script = `<script src="${domtoUrl}"><\/script><script>
+  const script = `<script src="${h2cUrl}"><\/script><script>
 window.addEventListener('load',function(){
-  var start=function(){
-    var els=document.body.querySelectorAll('*'),maxR=0,maxB=0;
-    for(var i=0;i<els.length;i++){
-      var el=els[i];
-      if(el.offsetParent===null&&el.tagName!=='BODY')continue;
-      var r=el.getBoundingClientRect();
-      if(r.width===0&&r.height===0)continue;
-      if(r.right>maxR)maxR=r.right;
-      if(r.bottom>maxB)maxB=r.bottom;
-    }
-    var pb=parseFloat(getComputedStyle(document.body).paddingBottom)||0;
-    var W=Math.max(maxR,document.body.offsetWidth);
-    var H=maxB+pb;
-    domtoimage.toPng(document.body,{
-      width:W, height:H, scale:2,
-      style:{margin:'0',padding:'0',width:W+'px',height:H+'px'}
-    }).then(function(dataUrl){
-      window.parent.postMessage({type:'CAPTURE_DONE',dataUrl:dataUrl},'*');
-    }).catch(function(e){
-      window.parent.postMessage({type:'CAPTURE_ERROR',msg:String(e)},'*');
-    });
-  };
-  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(start,800);});}
-  else{setTimeout(start,800);}
+ var start=function(){
+  var els=document.body.querySelectorAll('*'),maxR=0,maxB=0;
+  for(var i=0;i<els.length;i++){
+    var el=els[i];
+    if(el.offsetParent===null&&el.tagName!=='BODY')continue;
+    var r=el.getBoundingClientRect();
+    if(r.width===0&&r.height===0)continue;
+    if(r.right>maxR)maxR=r.right;
+    if(r.bottom>maxB)maxB=r.bottom;
+  }
+  var pb=parseFloat(getComputedStyle(document.body).paddingBottom)||0;
+  var W=Math.max(maxR,document.body.offsetWidth);
+  var H=maxB+pb;
+  html2canvas(document.body,{
+    width:W,height:H,windowWidth:W,windowHeight:H,
+    x:0,y:0,scrollX:0,scrollY:0,
+    useCORS:true,allowTaint:true,scale:2,
+    backgroundColor:null,
+    logging:false,
+    imageTimeout:0,
+    removeContainer:true
+  }).then(function(canvas){
+    window.parent.postMessage({type:'CAPTURE_DONE',dataUrl:canvas.toDataURL('image/png')},'*');
+  }).catch(function(e){
+    window.parent.postMessage({type:'CAPTURE_ERROR',msg:String(e)},'*');
+  });
+ };
+ if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(start,1500);});}
+ else{setTimeout(start,1500);}
 });
 <\/script>`;
 
