@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML 미리보기</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<title>HTML 미리보기 v4</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -13,20 +12,15 @@
     --cream-light: #FBF8F3;
     --cream-dark:  #EDE8DE;
     --cream-border:#DDD8CE;
-    --cream-mid:   #C9C3B6;
-    --brown-soft:  #8C7E6A;
     --brown-dark:  #4A3F32;
     --brown-btn:   #6B5A47;
     --brown-hover: #584A3A;
     --accent:      #B5935A;
-    --accent-light:#F0E6D4;
     --text-main:   #2E2620;
-    --text-sub:    #7A6E63;
     --text-hint:   #A89E94;
     --white:       #FFFFFF;
     --radius-sm:   6px;
     --radius-md:   10px;
-    --radius-lg:   14px;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,7 +35,6 @@
     overflow: hidden;
   }
 
-  /* ── 상단 헤더 ── */
   header {
     display: flex;
     align-items: center;
@@ -72,7 +65,6 @@
   }
 
   .spacer { flex: 1; }
-
   .toolbar-btns { display: flex; gap: 8px; }
 
   .btn {
@@ -84,13 +76,6 @@
     cursor: pointer; border: none;
     transition: all 0.15s;
   }
-  .btn-ghost {
-    background: transparent;
-    color: var(--brown-soft);
-    border: 1px solid var(--cream-border);
-  }
-  .btn-ghost:hover { background: var(--cream-dark); color: var(--brown-dark); }
-
   .btn-clear {
     background: transparent;
     color: var(--text-hint);
@@ -106,15 +91,10 @@
   }
   .btn-capture:hover { background: var(--brown-hover); }
   .btn-capture:active { transform: scale(0.97); }
+  .btn-capture:disabled { opacity: 0.6; cursor: not-allowed; }
 
-  /* ── 메인 레이아웃 ── */
-  .main {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-  }
+  .main { display: flex; flex: 1; min-height: 0; }
 
-  /* ── 에디터 패널 (좁게) ── */
   .editor-panel {
     display: flex;
     flex-direction: column;
@@ -155,27 +135,15 @@
   textarea::placeholder { color: var(--text-hint); font-size: 12px; }
   textarea:focus { background: var(--white); }
 
-  /* 드래그 핸들 */
   .resize-handle {
     width: 5px;
     background: var(--cream-border);
     cursor: col-resize;
     flex-shrink: 0;
     transition: background 0.15s;
-    position: relative;
   }
   .resize-handle:hover { background: var(--accent); }
-  .resize-handle::after {
-    content: '';
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 1px; height: 40px;
-    background: inherit;
-    border-radius: 2px;
-  }
 
-  /* ── 미리보기 패널 (넓게) ── */
   .preview-panel {
     display: flex;
     flex-direction: column;
@@ -184,12 +152,6 @@
     background: var(--cream-bg);
   }
 
-  .preview-status {
-    font-size: 11px; color: var(--text-hint);
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* iframe 영역 */
   .preview-body {
     flex: 1; min-height: 0; position: relative;
     background: #fff;
@@ -205,7 +167,6 @@
     border: none; display: block;
   }
 
-  /* 빈 상태 */
   .empty-state {
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
@@ -217,7 +178,6 @@
   .empty-icon { font-size: 36px; opacity: 0.3; }
   .empty-text { font-size: 13px; color: var(--text-hint); }
 
-  /* 캡처 성공 토스트 */
   .toast {
     position: fixed;
     bottom: 28px; left: 50%;
@@ -245,6 +205,7 @@
   <div class="logo">
     <div class="logo-icon">&#60;/&#62;</div>
     HTML 미리보기
+    <span style="font-size:10px;font-weight:400;color:var(--text-hint);margin-left:4px;">v4</span>
   </div>
   <div class="spacer"></div>
   <div class="toolbar-btns">
@@ -254,19 +215,16 @@
 </header>
 
 <div class="main">
-  <!-- 에디터 -->
   <div class="editor-panel" id="editorPanel">
     <div class="panel-header">
       <span class="panel-label">코드 편집</span>
       <span class="line-count" id="lineCount">0줄</span>
     </div>
-    <textarea id="codeEditor" placeholder="여기에 HTML 코드를 입력하세요...&#10;&#10;예)&#10;&lt;h1&gt;안녕하세요&lt;/h1&gt;&#10;&lt;p&gt;HTML 미리보기 도구입니다.&lt;/p&gt;" spellcheck="false"></textarea>
+    <textarea id="codeEditor" placeholder="여기에 HTML 코드를 입력하세요..." spellcheck="false"></textarea>
   </div>
 
-  <!-- 드래그 핸들 -->
   <div class="resize-handle" id="resizeHandle"></div>
 
-  <!-- 미리보기 -->
   <div class="preview-panel">
     <div class="preview-body" id="previewBody">
       <div class="empty-state" id="emptyState">
@@ -278,22 +236,21 @@
   </div>
 </div>
 
-<div class="toast" id="toast">✓ 이미지로 저장되었습니다</div>
+<div class="toast" id="toast"></div>
 
 <script>
-const editor    = document.getElementById('codeEditor');
-const frame     = document.getElementById('previewFrame');
-const lineCount = document.getElementById('lineCount');
-const emptyState= document.getElementById('emptyState');
-const toast     = document.getElementById('toast');
+const editor     = document.getElementById('codeEditor');
+const frame      = document.getElementById('previewFrame');
+const lineCount  = document.getElementById('lineCount');
+const emptyState = document.getElementById('emptyState');
+const toast      = document.getElementById('toast');
+const captureBtn = document.getElementById('captureBtn');
 
 let timer;
 
 function updatePreview() {
   const code = editor.value.trim();
-  const lines = editor.value ? editor.value.split('\n').length : 0;
-  lineCount.textContent = lines + '줄';
-
+  lineCount.textContent = (editor.value ? editor.value.split('\n').length : 0) + '줄';
   clearTimeout(timer);
   timer = setTimeout(() => {
     if (!code) {
@@ -305,7 +262,6 @@ function updatePreview() {
     doc.open(); doc.write(code); doc.close();
     frame.style.display = 'block';
     emptyState.style.display = 'none';
-
   }, 280);
 }
 
@@ -314,8 +270,8 @@ editor.addEventListener('input', updatePreview);
 editor.addEventListener('keydown', e => {
   if (e.key === 'Tab') {
     e.preventDefault();
-    const s = editor.selectionStart, end = editor.selectionEnd;
-    editor.value = editor.value.slice(0, s) + '  ' + editor.value.slice(end);
+    const s = editor.selectionStart;
+    editor.value = editor.value.slice(0, s) + '  ' + editor.value.slice(editor.selectionEnd);
     editor.selectionStart = editor.selectionEnd = s + 2;
     updatePreview();
   }
@@ -327,61 +283,62 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   editor.focus();
 });
 
-document.getElementById('captureBtn').addEventListener('click', async () => {
-  if (!editor.value.trim()) { showToast('먼저 HTML 코드를 입력하세요'); return; }
+// ── 캡처: dom-to-image-more 라이브러리 사용 ──
+captureBtn.addEventListener('click', async () => {
+  const code = editor.value.trim();
+  if (!code) { showToast('먼저 HTML 코드를 입력하세요'); return; }
+
+  captureBtn.disabled = true;
+  captureBtn.textContent = '캡처 중...';
+
   try {
-    const iframeDoc = frame.contentDocument || frame.contentWindow.document;
-    const iframeBody = iframeDoc.body;
-    const iframeHtml = iframeDoc.documentElement;
+    const iDoc  = frame.contentDocument || frame.contentWindow.document;
+    const iBody = iDoc.body;
+    const iHtml = iDoc.documentElement;
 
-    // 실제 콘텐츠 크기 측정
-    const contentW = Math.max(iframeBody.scrollWidth, iframeHtml.scrollWidth);
-    const contentH = Math.max(iframeBody.scrollHeight, iframeHtml.scrollHeight);
+    // 콘텐츠 실제 크기
+    const W = Math.max(iBody.scrollWidth,  iHtml.scrollWidth,  iBody.offsetWidth,  iHtml.offsetWidth);
+    const H = Math.max(iBody.scrollHeight, iHtml.scrollHeight, iBody.offsetHeight, iHtml.offsetHeight);
 
-    // iframe을 콘텐츠 크기에 맞게 임시 확장
-    const origW = frame.style.width;
-    const origH = frame.style.height;
-    frame.style.width  = contentW + 'px';
-    frame.style.height = contentH + 'px';
+    // iframe을 콘텐츠 크기로 임시 확장 (여백 제거 핵심)
+    frame.style.width  = W + 'px';
+    frame.style.height = H + 'px';
 
-    // 배경색 가져오기 (없으면 흰색)
-    const bgColor = window.getComputedStyle(iframeBody).backgroundColor || '#ffffff';
-
-    const canvas = await html2canvas(iframeBody, {
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: bgColor === 'rgba(0, 0, 0, 0)' ? '#ffffff' : bgColor,
-      scale: 2,
-      width: contentW,
-      height: contentH,
-      windowWidth: contentW,
-      windowHeight: contentH,
-      scrollX: 0,
-      scrollY: 0
+    // domtoimage로 캡처
+    const dataUrl = await domtoimage.toPng(iHtml, {
+      width: W,
+      height: H,
+      style: { margin: '0', padding: '0' }
     });
 
-    // iframe 원래 크기로 복원
-    frame.style.width  = origW;
-    frame.style.height = origH;
+    // iframe 원래 크기 복원
+    frame.style.width  = '100%';
+    frame.style.height = '100%';
 
-    const a = document.createElement('a');
+    const a  = document.createElement('a');
     const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
     a.download = 'preview-' + ts + '.png';
-    a.href = canvas.toDataURL('image/png');
+    a.href = dataUrl;
     a.click();
-    showToast('✓ 이미지로 저장되었습니다');
-  } catch(e) {
-    showToast('캡처 중 오류가 발생했습니다');
+    showToast('✓ 저장되었습니다');
+  } catch (err) {
+    frame.style.width  = '100%';
+    frame.style.height = '100%';
+    console.error(err);
+    showToast('캡처 실패: ' + err.message);
   }
+
+  captureBtn.disabled = false;
+  captureBtn.textContent = '📷 캡처 저장';
 });
 
 function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2200);
+  setTimeout(() => toast.classList.remove('show'), 2400);
 }
 
-/* ── 드래그로 패널 크기 조절 ── */
+// ── 패널 드래그 리사이즈 ──
 const handle = document.getElementById('resizeHandle');
 const editorPanel = document.getElementById('editorPanel');
 let dragging = false, startX, startW;
@@ -403,5 +360,9 @@ document.addEventListener('mouseup', () => {
   document.body.style.userSelect = '';
 });
 </script>
+
+<!-- dom-to-image-more: SVG foreignObject보다 훨씬 안정적 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.0/dom-to-image-more.min.js"></script>
+
 </body>
 </html>
