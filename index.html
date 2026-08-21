@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HTML 미리보기</title>
-<!-- html2canvas를 메인 창에 직접 로드 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -245,7 +244,6 @@
         <div class="empty-icon">⌨️</div>
         <div class="empty-text">HTML 코드를 입력하면 여기에 표시됩니다</div>
       </div>
-      <!-- sandbox 옵션에 allow-modals, allow-popups 추가하여 렌더링 호환성 극대화 -->
       <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
     </div>
   </div>
@@ -268,8 +266,6 @@ function fitIframeHeight() {
   try {
     const iDoc = frame.contentDocument || frame.contentWindow.document;
     if (!iDoc || !iDoc.body) return;
-    
-    // iframe 높이를 실제 내부 컨텐츠 전체 높이에 맞춤
     const h = Math.max(iDoc.body.scrollHeight, iDoc.documentElement.scrollHeight);
     if (h > 0) frame.style.height = h + 'px';
   } catch(e) {}
@@ -332,7 +328,7 @@ function switchTab(tab) {
   }
 }
 
-// ── 캡처: 미리보기 화면을 그대로 다이렉트 캡처 ──
+// ── 캡처: 원래 문서의 배경색을 추출해서 적용하는 로직 추가 ──
 captureBtn.addEventListener('click', async () => {
   if (!currentCode) { showToast('먼저 HTML 코드를 입력하세요'); return; }
   
@@ -342,34 +338,37 @@ captureBtn.addEventListener('click', async () => {
   try {
     const iDoc = frame.contentDocument || frame.contentWindow.document;
     const body = iDoc.body;
-
-    // 1. 유효한 최상위 컨테이너 탐색 (스크립트/스타일 제외)
-    const validChildren = Array.from(body.children).filter(el => !['SCRIPT', 'STYLE'].includes(el.tagName));
     
-    // 본문 컨테이너(카드/문서 래퍼)가 있으면 그 요소만 지정하여 주변 흰 여백을 완벽 제거
-    const targetElement = (validChildren.length === 1) ? validChildren[0] : body;
-
-    // 2. 폰트 로딩 대기
+    // 폰트 완전 로딩 대기
     if (iDoc.fonts && iDoc.fonts.ready) {
       await iDoc.fonts.ready;
     }
 
-    // 3. 라이브 미리보기 화면을 그대로 캡처
-    const canvas = await html2canvas(targetElement, {
-      scale: 2,                 // 고화질 2배율
-      backgroundColor: null,    // 둥근 모서리 및 투명 배경 유지
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      scrollX: 0,
-      scrollY: 0
+    // 1. 캡처할 요소 타겟팅 (여백 없애기용)
+    const validChildren = Array.from(body.children).filter(el => !['SCRIPT', 'STYLE'].includes(el.tagName));
+    const targetElement = (validChildren.length === 1) ? validChildren[0] : body;
+
+    // 2. 사용자가 HTML에 지정한 진짜 배경색(body 배경색) 가져오기
+    let originalBgColor = window.getComputedStyle(body).backgroundColor;
+    
+    // 만약 배경색을 아예 지정 안 했다면 기본값인 흰색으로 처리
+    if (originalBgColor === 'rgba(0, 0, 0, 0)' || originalBgColor === 'transparent') {
+      originalBgColor = '#ffffff';
+    }
+
+    // 3. 캡처 실행 (추출한 원래 배경색을 그대로 적용!)
+    const dataUrl = await htmlToImage.toPng(targetElement, {
+      pixelRatio: 2, 
+      backgroundColor: originalBgColor, // 👈 여기에 원래 색상을 넣습니다!
+      style: {
+        margin: '0' 
+      }
     });
 
-    // 4. 이미지 다운로드
     const a = document.createElement('a');
     const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
     a.download = 'preview-' + ts + '.png';
-    a.href = canvas.toDataURL('image/png');
+    a.href = dataUrl;
     a.click();
     showToast('✓ 저장되었습니다');
 
