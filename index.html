@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML 미리보기 v23</title>
+<title>HTML 미리보기</title>
+<!-- html2canvas를 메인 창에 직접 로드 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -33,7 +35,6 @@
     overflow: hidden;
   }
 
-  /* ── 헤더 ── */
   header {
     display: flex;
     align-items: center;
@@ -87,7 +88,6 @@
   .btn-capture:hover { background: var(--brown-hover); }
   .btn-capture:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* ── 모바일 탭 ── */
   .tab-bar {
     display: none;
     background: var(--cream-light);
@@ -106,10 +106,8 @@
   }
   .tab-btn.active { color: var(--brown-btn); border-bottom-color: var(--brown-btn); }
 
-  /* ── 메인 ── */
   .main { display: flex; flex: 1; min-height: 0; }
 
-  /* ── 에디터 ── */
   .editor-panel {
     display: flex; flex-direction: column;
     width: 260px; flex-shrink: 0;
@@ -143,7 +141,6 @@
   textarea:focus { background: #fff; }
   textarea::placeholder { color: var(--text-hint); }
 
-  /* ── 드래그 핸들 ── */
   .resize-handle {
     width: 4px; flex-shrink: 0;
     background: var(--cream-border);
@@ -152,31 +149,24 @@
   }
   .resize-handle:hover { background: var(--accent); }
 
-  /* ── 미리보기 ── */
   .preview-panel {
     display: flex; flex-direction: column;
     flex: 1; min-width: 0;
+    background: #fff;
   }
 
-  /* 미리보기 박스: 세로 스크롤만 허용 */
   .preview-body {
     flex: 1; min-height: 0;
-    margin: 10px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--cream-border);
-    box-shadow: 0 2px 12px rgba(74,63,50,0.06);
     background: #fff;
-    overflow-x: hidden;
     overflow-y: auto;
     position: relative;
   }
 
-  /* iframe: 너비 100%, 높이는 JS로 콘텐츠에 맞게 */
   #previewFrame {
     display: none;
     width: 100%;
     border: none;
-    background: #fff;
+    background: transparent;
   }
 
   .empty-state {
@@ -190,7 +180,6 @@
   .empty-icon { font-size: 34px; opacity: 0.3; }
   .empty-text { font-size: 13px; color: var(--text-hint); }
 
-  /* ── 토스트 ── */
   .toast {
     position: fixed; bottom: 28px; left: 50%;
     transform: translateX(-50%) translateY(20px);
@@ -203,24 +192,18 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  /* ── 모바일 ── */
   @media (max-width: 768px) {
-    .logo .ver { display: none; }
     .tab-bar { display: block; }
     .resize-handle { display: none; }
     .main { flex-direction: column; }
-
     .editor-panel {
       width: 100%; border-right: none;
-      flex: 1; min-height: 0;
-      display: none;
+      flex: 1; min-height: 0; display: none;
     }
     .editor-panel.tab-active { display: flex; }
-
     .preview-panel { flex: 1; min-height: 0; display: none; }
     .preview-panel.tab-active { display: flex; }
 
-    .preview-body { margin: 8px; }
     .panel-header { display: none; }
     .btn { padding: 5px 10px; font-size: 12px; }
   }
@@ -232,7 +215,6 @@
   <div class="logo">
     <div class="logo-icon">&#60;/&#62;</div>
     HTML 미리보기
-    <span class="ver" style="font-size:10px;font-weight:400;color:var(--text-hint);margin-left:2px;">v23</span>
   </div>
   <div class="spacer"></div>
   <button class="btn btn-clear" id="clearBtn">초기화</button>
@@ -263,7 +245,8 @@
         <div class="empty-icon">⌨️</div>
         <div class="empty-text">HTML 코드를 입력하면 여기에 표시됩니다</div>
       </div>
-      <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+      <!-- sandbox 옵션에 allow-modals, allow-popups 추가하여 렌더링 호환성 극대화 -->
+      <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
     </div>
   </div>
 </div>
@@ -273,7 +256,6 @@
 <script>
 const editor      = document.getElementById('codeEditor');
 const frame       = document.getElementById('previewFrame');
-const previewBody = document.getElementById('previewBody');
 const lineCount   = document.getElementById('lineCount');
 const emptyState  = document.getElementById('emptyState');
 const captureBtn  = document.getElementById('captureBtn');
@@ -282,10 +264,13 @@ const toast       = document.getElementById('toast');
 let timer;
 let currentCode = '';
 
-// iframe 높이를 콘텐츠에 맞게 조정
 function fitIframeHeight() {
   try {
-    const h = frame.contentDocument.documentElement.scrollHeight;
+    const iDoc = frame.contentDocument || frame.contentWindow.document;
+    if (!iDoc || !iDoc.body) return;
+    
+    // iframe 높이를 실제 내부 컨텐츠 전체 높이에 맞춤
+    const h = Math.max(iDoc.body.scrollHeight, iDoc.documentElement.scrollHeight);
     if (h > 0) frame.style.height = h + 'px';
   } catch(e) {}
 }
@@ -297,22 +282,17 @@ function updatePreview() {
   timer = setTimeout(() => {
     if (!currentCode) {
       frame.style.display = 'none';
-      frame.style.height = '0px';
       emptyState.style.display = 'flex';
       return;
     }
-    // 매번 새로 작성
-    frame.style.height = '0px';
     const doc = frame.contentDocument || frame.contentWindow.document;
     doc.open();
     doc.write(currentCode);
     doc.close();
     frame.style.display = 'block';
     emptyState.style.display = 'none';
-    // 렌더링 후 높이 맞춤
-    setTimeout(fitIframeHeight, 200);
-    if (window.innerWidth <= 768) switchTab('preview');
-  }, 400);
+    setTimeout(fitIframeHeight, 150);
+  }, 300);
 }
 
 editor.addEventListener('input', updatePreview);
@@ -330,14 +310,12 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   editor.value = '';
   currentCode = '';
   frame.style.display = 'none';
-  frame.style.height = '0px';
   emptyState.style.display = 'flex';
   lineCount.textContent = '0줄';
   if (window.innerWidth <= 768) switchTab('code');
   editor.focus();
 });
 
-// ── 탭 전환 ──
 function switchTab(tab) {
   const ep = document.getElementById('editorPanel');
   const pp = document.getElementById('previewPanel');
@@ -354,89 +332,53 @@ function switchTab(tab) {
   }
 }
 
-// ── 캡처 ──
-// 별도 iframe에 html2canvas 주입 → postMessage로 결과 수신
-captureBtn.addEventListener('click', () => {
+// ── 캡처: 미리보기 화면을 그대로 다이렉트 캡처 ──
+captureBtn.addEventListener('click', async () => {
   if (!currentCode) { showToast('먼저 HTML 코드를 입력하세요'); return; }
+  
   captureBtn.disabled = true;
   captureBtn.textContent = '캡처 중...';
 
-  const h2cUrl = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-  const cf = document.createElement('iframe');
-  cf.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-  cf.style.cssText = 'position:fixed;left:-99999px;top:0;width:800px;height:10000px;border:none;visibility:hidden;';
-  document.body.appendChild(cf);
+  try {
+    const iDoc = frame.contentDocument || frame.contentWindow.document;
+    const body = iDoc.body;
 
-  const hasBody = /<\/body>/i.test(currentCode);
-  const script = `<script src="${h2cUrl}"><\/script><script>
-window.addEventListener('load',function(){
- var start=function(){
-  var els=document.body.querySelectorAll('*'),maxR=0,maxB=0;
-  for(var i=0;i<els.length;i++){
-    var el=els[i];
-    if(el.offsetParent===null&&el.tagName!=='BODY')continue;
-    var r=el.getBoundingClientRect();
-    if(r.width===0&&r.height===0)continue;
-    if(r.right>maxR)maxR=r.right;
-    if(r.bottom>maxB)maxB=r.bottom;
-  }
-  var pb=parseFloat(getComputedStyle(document.body).paddingBottom)||0;
-  var W=Math.max(maxR,document.body.offsetWidth);
-  var H=maxB+pb;
-  html2canvas(document.body,{
-    width:W,height:H,windowWidth:W,windowHeight:H,
-    x:0,y:0,scrollX:0,scrollY:0,
-    useCORS:true,allowTaint:true,scale:2,
-    backgroundColor:null,
-    logging:false,
-    imageTimeout:0,
-    removeContainer:true
-  }).then(function(canvas){
-    window.parent.postMessage({type:'CAPTURE_DONE',dataUrl:canvas.toDataURL('image/png')},'*');
-  }).catch(function(e){
-    window.parent.postMessage({type:'CAPTURE_ERROR',msg:String(e)},'*');
-  });
- };
- if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(start,1500);});}
- else{setTimeout(start,1500);}
-});
-<\/script>`;
+    // 1. 유효한 최상위 컨테이너 탐색 (스크립트/스타일 제외)
+    const validChildren = Array.from(body.children).filter(el => !['SCRIPT', 'STYLE'].includes(el.tagName));
+    
+    // 본문 컨테이너(카드/문서 래퍼)가 있으면 그 요소만 지정하여 주변 흰 여백을 완벽 제거
+    const targetElement = (validChildren.length === 1) ? validChildren[0] : body;
 
-  const injected = hasBody
-    ? currentCode.replace(/<\/body>/i, script + '</body>')
-    : currentCode + script;
+    // 2. 폰트 로딩 대기
+    if (iDoc.fonts && iDoc.fonts.ready) {
+      await iDoc.fonts.ready;
+    }
 
-  function onMsg(e) {
-    if (!e.data || (e.data.type !== 'CAPTURE_DONE' && e.data.type !== 'CAPTURE_ERROR')) return;
-    window.removeEventListener('message', onMsg);
-    if (document.body.contains(cf)) document.body.removeChild(cf);
+    // 3. 라이브 미리보기 화면을 그대로 캡처
+    const canvas = await html2canvas(targetElement, {
+      scale: 2,                 // 고화질 2배율
+      backgroundColor: null,    // 둥근 모서리 및 투명 배경 유지
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      scrollX: 0,
+      scrollY: 0
+    });
+
+    // 4. 이미지 다운로드
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+    a.download = 'preview-' + ts + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    showToast('✓ 저장되었습니다');
+
+  } catch (err) {
+    showToast('캡처 실패: ' + err.message);
+  } finally {
     captureBtn.disabled = false;
     captureBtn.textContent = '📷 캡처';
-    if (e.data.type === 'CAPTURE_DONE') {
-      const a = document.createElement('a');
-      const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
-      a.download = 'preview-' + ts + '.png';
-      a.href = e.data.dataUrl;
-      a.click();
-      showToast('✓ 저장되었습니다');
-    } else {
-      showToast('캡처 실패: ' + e.data.msg);
-    }
   }
-  window.addEventListener('message', onMsg);
-
-  const cd = cf.contentDocument || cf.contentWindow.document;
-  cd.open(); cd.write(injected); cd.close();
-
-  setTimeout(() => {
-    if (captureBtn.disabled) {
-      window.removeEventListener('message', onMsg);
-      if (document.body.contains(cf)) document.body.removeChild(cf);
-      showToast('캡처 시간 초과');
-      captureBtn.disabled = false;
-      captureBtn.textContent = '📷 캡처';
-    }
-  }, 30000);
 });
 
 function showToast(msg) {
@@ -445,7 +387,6 @@ function showToast(msg) {
   setTimeout(() => toast.classList.remove('show'), 2400);
 }
 
-// ── 드래그 리사이즈 ──
 const handle = document.getElementById('resizeHandle');
 const editorPanel = document.getElementById('editorPanel');
 let drag = false, startX, startW;
